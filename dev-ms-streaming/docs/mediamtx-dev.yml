@@ -1,0 +1,52 @@
+# =========================================================================
+# MediaMTX — configuración mínima para desarrollo Eduessence
+#
+# Uso:
+#   1. Descarga MediaMTX para tu OS:
+#        https://github.com/bluenviron/mediamtx/releases
+#   2. Reemplaza el archivo mediamtx.yml del paquete por este, O renómbralo
+#      a mediamtx.yml junto al binario.
+#   3. Ejecuta:   mediamtx.exe   (en Windows)
+#                 ./mediamtx     (en Linux/Mac)
+#   4. En tu .env del proyecto:
+#        STREAMING_PROVIDER=LOCAL_RTMP
+#        LOCAL_RTMP_INGEST_HOST=<tu-IP-de-LAN>      # ej. 192.168.2.4
+#        LOCAL_RTMP_PLAYBACK_HOST=<tu-IP-de-LAN>
+#   5. Reinicia streaming-service y crea una nueva sesión virtual desde el
+#      curso. El stream key generado SÍ funcionará en OBS.
+#
+# Puertos abiertos por MediaMTX:
+#   1935 — RTMP ingest (OBS publica aquí)
+#   8888 — HLS playback (el browser consume)
+#   8554 — RTSP (no usado por nosotros)
+#   8189 — WebRTC (no usado)
+#
+# Importante para el firewall de Windows:
+#   La primera vez que ejecutes mediamtx.exe, Windows te preguntará si
+#   permitir tráfico entrante. Acepta para "Redes privadas" como mínimo.
+# =========================================================================
+
+# ─── Servidor HLS para que el browser reproduzca ───
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigin: '*'           # CORS abierto (solo dev)
+hlsVariant: lowLatency        # Latencia ~3-5s
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+
+# ─── RTMP ingest ───
+rtmp: yes
+rtmpAddress: :1935
+
+# ─── Apagamos lo que no usamos ───
+rtsp: no
+webrtc: no
+srt: no
+
+# ─── Configuración global de paths ───
+# 'all_others' = acepta cualquier streamKey (lo valida nuestro back-end)
+pathDefaults:
+  source: publisher
+
+paths:
+  all_others:

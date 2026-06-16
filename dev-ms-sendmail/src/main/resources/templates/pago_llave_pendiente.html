@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tu llave de pago Bre-B · ${empresaNombre}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f7fc;font-family:'Segoe UI',Arial,sans-serif;color:#0a1d3f;">
+
+  <div style="display:none;max-height:0;overflow:hidden;">
+    Tu llave de pago Bre-B para ${nombreCurso} — monto ${monto}, válida por ${horasReserva}h.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color:#f4f7fc;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:600px;background-color:#ffffff;border-radius:14px;overflow:hidden;
+                      box-shadow:0 8px 24px -12px rgba(0,74,173,0.15);">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,#ecad43 0%,#c08a26 100%);
+                       padding:28px 32px;color:#1a1100;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;opacity:0.85;">
+                Pago pendiente · ${empresaNombre}
+              </p>
+              <p style="margin:18px 0 0;font-size:24px;font-weight:800;letter-spacing:-0.02em;line-height:1.2;">
+                Tu llave Bre-B está lista
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:36px 32px 12px;">
+              <p style="margin:0 0 16px;font-size:17px;font-weight:600;">
+                Hola ${nombreDestinatario},
+              </p>
+              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#374151;">
+                Tu reserva del curso fue creada. Para completar el pago, utiliza la llave Bre-B
+                a continuación desde tu app bancaria:
+              </p>
+
+              <!-- Llave + monto -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="background:linear-gradient(135deg,#fff8e8 0%,#ffe9c2 100%);
+                            border-radius:12px;padding:24px 22px;border:2px dashed #ecad43;">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:#8a5e0c;">
+                      Llave Bre-B
+                    </p>
+                    <p style="margin:10px 0 0;font-size:24px;font-weight:800;letter-spacing:0.12em;color:#1a1100;font-family:'Courier New',monospace;word-break:break-all;">
+                      ${llave}
+                    </p>
+                    <div style="height:1px;background-color:rgba(138,94,12,0.25);margin:18px 0;"></div>
+                    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#8a5e0c;">
+                      Monto a pagar
+                    </p>
+                    <p style="margin:8px 0 0;font-size:22px;font-weight:800;color:#0a1d3f;">
+                      ${monto}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="margin-top:24px;background-color:#fff3cd;border-radius:8px;padding:14px 16px;border-left:4px solid #ecad43;">
+                <tr>
+                  <td>
+                    <p style="margin:0;font-size:13px;line-height:1.55;color:#5c4708;">
+                      <strong>⏰ Importante:</strong> tu cupo está reservado por
+                      <strong>${horasReserva} horas</strong>. Si no se confirma el pago en ese plazo,
+                      la reserva se libera automáticamente.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0;font-size:13px;line-height:1.55;color:#374151;">
+                Detalle del cobro: <strong>${nombreCurso}</strong>.
+                El pago será verificado y recibirás una confirmación en cuanto se acredite.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 32px;">
+              <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,74,173,0.2),transparent);"></div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 32px 28px;text-align:center;color:#6b7280;font-size:12px;line-height:1.6;">
+              <p style="margin:0 0 6px;font-weight:700;color:#0a1d3f;">${empresaNombre}</p>
+              <p style="margin:0;">
+                <a href="${empresaSitioWeb}" style="color:#004aad;text-decoration:none;">${empresaSitioWeb}</a>
+                · <a href="mailto:${empresaCorreo}" style="color:#004aad;text-decoration:none;">${empresaCorreo}</a>
+              </p>
+              <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">
+                © ${anioActual} ${empresaNombre}. Llave generada el ${fecha}.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

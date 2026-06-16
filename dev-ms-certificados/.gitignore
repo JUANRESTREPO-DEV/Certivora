@@ -1,0 +1,40 @@
+### Java / Maven ###
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+HELP.md
+.mvn/
+mvnw
+mvnw.cmd
+
+### IDEs ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Logs ###
+*.log
+logs/
+
+### Spring ###
+out/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### Local config ###
+*.env
+*.env.local
+src/main/resources/application-local.properties

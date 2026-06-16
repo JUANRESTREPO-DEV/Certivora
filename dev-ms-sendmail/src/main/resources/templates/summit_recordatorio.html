@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${nombreEvento} empieza pronto · ${empresaNombre}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f7fc;font-family:'Segoe UI',Arial,sans-serif;color:#0a1d3f;">
+
+  <div style="display:none;max-height:0;overflow:hidden;">
+    ${nombreEvento} comienza el ${fechaInicio} — prepárate para conectarte.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color:#f4f7fc;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:600px;background-color:#ffffff;border-radius:14px;overflow:hidden;
+                      box-shadow:0 8px 24px -12px rgba(0,74,173,0.15);">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,#004aad 0%,#1e63d8 50%,#ecad43 100%);
+                       padding:32px 32px;color:#ffffff;text-align:center;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;opacity:0.9;">
+                Recordatorio · ${empresaNombre}
+              </p>
+              <p style="margin:18px 0 0;font-size:26px;font-weight:800;letter-spacing:-0.02em;line-height:1.2;">
+                Tu evento empieza pronto
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:36px 32px 12px;">
+              <p style="margin:0 0 16px;font-size:17px;font-weight:600;">
+                Hola ${nombreDestinatario},
+              </p>
+              <p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#374151;">
+                Te recordamos que estás inscrito al siguiente evento:
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="background:linear-gradient(135deg,#f3f7ff 0%,#fff8e8 100%);
+                            border-radius:12px;padding:24px 22px;border:1px solid rgba(0,74,173,0.15);">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#004aad;">
+                      Evento
+                    </p>
+                    <p style="margin:8px 0 18px;font-size:22px;font-weight:800;color:#0a1d3f;line-height:1.2;">
+                      ${nombreEvento}
+                    </p>
+                    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#004aad;">
+                      📅 Inicio
+                    </p>
+                    <p style="margin:8px 0 0;font-size:16px;font-weight:700;color:#0a1d3f;">
+                      ${fechaInicio}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              #if($urlStreaming && $urlStreaming != "")
+              <p style="margin:24px 0 18px;font-size:14px;line-height:1.6;color:#374151;text-align:center;">
+                Únete a la transmisión en vivo desde el siguiente enlace:
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${urlStreaming}"
+                       style="display:inline-block;padding:14px 36px;border-radius:999px;
+                              background:linear-gradient(135deg,#d13633 0%,#9c1614 100%);
+                              color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;
+                              box-shadow:0 8px 20px -8px rgba(209,54,51,0.45);">
+                      🔴 Entrar a la transmisión
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              #else
+              <p style="margin:24px 0 8px;font-size:14px;line-height:1.6;color:#374151;text-align:center;">
+                Recibirás detalles del lugar y conexión próximamente. Mientras tanto,
+                puedes revisar el programa oficial desde nuestra página.
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding-top:18px;">
+                    <a href="${empresaSitioWeb}"
+                       style="display:inline-block;padding:13px 32px;border-radius:999px;
+                              background:linear-gradient(135deg,#004aad 0%,#003788 100%);
+                              color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;
+                              box-shadow:0 8px 20px -8px rgba(0,74,173,0.55);">
+                      Ver detalles
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              #end
+
+              <p style="margin:28px 0 0;font-size:12px;line-height:1.5;color:#9ca3af;text-align:center;">
+                Si ya no quieres recibir recordatorios, ajusta tus preferencias desde el panel.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 32px;">
+              <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,74,173,0.2),transparent);"></div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 32px 28px;text-align:center;color:#6b7280;font-size:12px;line-height:1.6;">
+              <p style="margin:0 0 6px;font-weight:700;color:#0a1d3f;">${empresaNombre}</p>
+              <p style="margin:0;">
+                <a href="${empresaSitioWeb}" style="color:#004aad;text-decoration:none;">${empresaSitioWeb}</a>
+                · <a href="mailto:${empresaCorreo}" style="color:#004aad;text-decoration:none;">${empresaCorreo}</a>
+              </p>
+              <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">
+                © ${anioActual} ${empresaNombre}. Recordatorio enviado el ${fecha}.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

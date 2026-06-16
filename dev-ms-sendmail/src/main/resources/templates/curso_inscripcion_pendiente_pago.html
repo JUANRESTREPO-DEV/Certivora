@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reserva creada · ${empresaNombre}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f7fc;font-family:'Segoe UI',Arial,sans-serif;color:#0a1d3f;">
+
+  <div style="display:none;max-height:0;overflow:hidden;">
+    Tu cupo en ${nombreCurso} está reservado — completa el pago.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color:#f4f7fc;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:600px;background-color:#ffffff;border-radius:14px;overflow:hidden;
+                      box-shadow:0 8px 24px -12px rgba(0,74,173,0.15);">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,#ecad43 0%,#c8870a 100%);
+                       padding:28px 32px;color:#ffffff;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;opacity:0.9;">
+                Reserva temporal · ${empresaNombre}
+              </p>
+              <p style="margin:18px 0 0;font-size:24px;font-weight:800;line-height:1.2;">
+                Confirma tu pago para asegurar el cupo
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:36px 32px 12px;">
+              <p style="margin:0 0 16px;font-size:17px;font-weight:600;">
+                Hola ${nombreDestinatario},
+              </p>
+              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#374151;">
+                Reservamos tu cupo en <strong>${nombreCurso}</strong> (matrícula #${matriculaId}).
+                Para confirmarlo, realiza la transferencia siguiendo los datos bancarios que aparecen
+                en tu panel y sube el comprobante.
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="background:#fef3c7;border-left:4px solid #ecad43;border-radius:8px;padding:16px 18px;">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:0.15em;
+                              text-transform:uppercase;color:#92400e;">
+                      Importante
+                    </p>
+                    <p style="margin:0;font-size:14px;color:#78350f;line-height:1.5;">
+                      Si no confirmamos tu pago a tiempo, la reserva se liberará automáticamente y
+                      tu cupo pasará al siguiente en la lista.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+                <tr>
+                  <td align="center">
+                    <a href="${urlPago}"
+                       style="display:inline-block;padding:14px 36px;border-radius:999px;
+                              background:linear-gradient(135deg,#004aad 0%,#003788 100%);
+                              color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;
+                              box-shadow:0 8px 20px -8px rgba(0,74,173,0.55);">
+                      Subir mi comprobante
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 32px;">
+              <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,74,173,0.2),transparent);"></div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 32px 28px;text-align:center;color:#6b7280;font-size:12px;line-height:1.6;">
+              <p style="margin:0 0 6px;font-weight:700;color:#0a1d3f;">${empresaNombre}</p>
+              <p style="margin:0;">
+                <a href="${empresaSitioWeb}" style="color:#004aad;text-decoration:none;">${empresaSitioWeb}</a>
+                · <a href="mailto:${empresaCorreo}" style="color:#004aad;text-decoration:none;">${empresaCorreo}</a>
+              </p>
+              <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">© ${anioActual} ${empresaNombre} · ${fecha}</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
