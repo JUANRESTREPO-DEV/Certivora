@@ -38,7 +38,7 @@ public class PublicFileController {
 
     private final S3Client s3;
 
-    @Value("${eduessence.aws.s3.bucket-cursos:eduessence-cursos-dev}")
+    @Value("${eduessence.aws.s3.bucket-cursos:edu-resources-dev}")
     private String bucket;
 
     /**

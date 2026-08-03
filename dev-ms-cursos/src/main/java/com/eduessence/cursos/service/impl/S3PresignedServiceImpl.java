@@ -47,7 +47,7 @@ public class S3PresignedServiceImpl implements S3PresignedService {
     private final S3Presigner presigner;
     private final S3Client s3;
 
-    @Value("${eduessence.aws.s3.bucket-cursos:eduessence-cursos-dev}")
+    @Value("${eduessence.aws.s3.bucket-cursos:edu-resources-dev}")
     private String bucket;
 
     @Value("${eduessence.aws.s3.cdn-base-url:}")

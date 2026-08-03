@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
@@ -21,7 +23,8 @@ import java.util.Arrays;
  * Para prod: descomenta {@code @Configuration} y obtiene la password
  * desde AWS Secrets Manager.
  */
-//@Configuration
+@Configuration
+@Profile("prod")
 public class DataSourceConfig {
 
     @Autowired
@@ -62,6 +65,6 @@ public class DataSourceConfig {
                 .build();
         GetSecretValueResponse res = client.getSecretValue(
                 GetSecretValueRequest.builder().secretId(secretName).build());
-        return new JSONObject(res.secretString()).getString("password");
+        return new JSONObject(res.secretString()).getString("RDS_PASSWORD");
     }
 }

@@ -2,12 +2,18 @@ package com.eduessence.cursos.service.impl;
 
 import com.eduessence.cursos.exception.CursosApiException;
 import com.eduessence.cursos.exception.ServerApiStatusCode;
+import com.eduessence.cursos.feign.AuthenticateServiceClient;
+import com.eduessence.cursos.feign.SendmailServiceClient;
 import com.eduessence.cursos.feign.StreamingServiceClient;
 import com.eduessence.cursos.model.dto.request.CrearSesionRequest;
 import com.eduessence.cursos.model.dto.response.SesionResponse;
+import com.eduessence.cursos.model.entity.Curso;
+import com.eduessence.cursos.model.entity.Matricula;
 import com.eduessence.cursos.model.entity.SesionVirtual;
+import com.eduessence.cursos.model.enums.EstadoMatricula;
 import com.eduessence.cursos.model.enums.TipoSesion;
 import com.eduessence.cursos.repository.CursoRepository;
+import com.eduessence.cursos.repository.MatriculaRepository;
 import com.eduessence.cursos.repository.SesionVirtualRepository;
 import com.eduessence.cursos.service.SesionService;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +34,10 @@ public class SesionServiceImpl implements SesionService {
 
     private final SesionVirtualRepository repo;
     private final CursoRepository cursoRepo;
+    private final MatriculaRepository matriculaRepo;
     private final StreamingServiceClient streamingClient;
+    private final AuthenticateServiceClient authClient;
+    private final SendmailServiceClient sendmail;
 
     @Value("${eduessence.qr.checkin-base-url:https://eduessence.com/asistencia/check-in}")
     private String qrBaseUrl;
@@ -234,7 +243,94 @@ public class SesionServiceImpl implements SesionService {
             liberarCanalStreaming(s);
         }
         log.info("Sesión {} del curso {} cancelada. Razón: {}", sesionId, cursoId, razon);
-        return toDto(repo.save(s));
+        SesionVirtual saved = repo.save(s);
+
+        // Notificar a los matriculados activos del curso
+        notificarCancelacionAmatriculados(saved, cursoId);
+
+        return toDto(saved);
+    }
+
+    /**
+     * Envía email a todos los matriculados con estado ACTIVA/APROBADA/FINALIZADA
+     * del curso para avisar que la sesión fue cancelada. Best-effort: no bloquea
+     * la respuesta si sendmail falla.
+     */
+    private void notificarCancelacionAmatriculados(SesionVirtual sesion, Long cursoId) {
+        try {
+            Curso curso = cursoRepo.findById(cursoId).orElse(null);
+            List<Matricula> matriculados = matriculaRepo.findAll().stream()
+                    .filter(m -> cursoId.equals(m.getCurso().getId()))
+                    .filter(m -> m.getEstado() == EstadoMatricula.ACTIVA
+                              || m.getEstado() == EstadoMatricula.APROBADA
+                              || m.getEstado() == EstadoMatricula.FINALIZADA)
+                    .toList();
+
+            if (matriculados.isEmpty()) {
+                log.info("Sesión {} cancelada — no hay matriculados a notificar", sesion.getId());
+                return;
+            }
+
+            String nombreCurso = curso == null ? ("Curso " + cursoId) : curso.getNombre();
+            String tituloSesion = sesion.getTitulo() == null ? "una sesión" : sesion.getTitulo();
+            String razon = sesion.getRazonCancelacion() == null ? "" : sesion.getRazonCancelacion();
+
+            int enviados = 0;
+            for (Matricula m : matriculados) {
+                UsuarioDestinatario dest = resolverDestinatario(m.getUsuarioId());
+                if (dest.correo == null || dest.correo.isBlank()) continue;
+                try {
+                    sendmail.enviarEmail(Map.of(
+                            "nombreTemplate", "SESION_CANCELADA",
+                            "destinatario", Map.of(
+                                    "correo", dest.correo,
+                                    "nombre", dest.nombre == null ? "" : dest.nombre),
+                            "variables", Map.of(
+                                    "nombreDestinatario", dest.nombre == null ? "" : dest.nombre,
+                                    "nombreCurso", nombreCurso,
+                                    "tituloSesion", tituloSesion,
+                                    "razon", razon,
+                                    "fechaSesion", sesion.getFechaInicio() == null
+                                            ? "" : sesion.getFechaInicio().toString()
+                            )
+                    ));
+                    enviados++;
+                } catch (Exception ex) {
+                    log.warn("No se pudo notificar cancelación a matrícula {}: {}",
+                            m.getId(), ex.getMessage());
+                }
+            }
+            log.info("Sesión {} cancelada — {} de {} matriculados notificados",
+                    sesion.getId(), enviados, matriculados.size());
+
+        } catch (Exception ex) {
+            log.warn("Falló la notificación de cancelación de sesión {}: {}",
+                    sesion.getId(), ex.getMessage());
+        }
+    }
+
+    /* ─────────────────── Lookup del email real ─────────────────── */
+
+    private record UsuarioDestinatario(String correo, String nombre) {}
+
+    @SuppressWarnings("unchecked")
+    private UsuarioDestinatario resolverDestinatario(Long usuarioId) {
+        try {
+            Map<String, Object> resp = authClient.lookup(List.of(usuarioId));
+            Object dataObj = resp == null ? null : resp.get("response");
+            if (dataObj instanceof List<?> list && !list.isEmpty()
+                    && list.get(0) instanceof Map<?, ?> u) {
+                Map<String, Object> mu = (Map<String, Object>) u;
+                String email = mu.get("email") == null ? null : mu.get("email").toString();
+                String nombres = mu.get("nombres") == null ? "" : mu.get("nombres").toString();
+                String apellidos = mu.get("apellidos") == null ? "" : mu.get("apellidos").toString();
+                String nombreCompleto = (nombres + " " + apellidos).trim();
+                return new UsuarioDestinatario(email, nombreCompleto.isEmpty() ? nombres : nombreCompleto);
+            }
+        } catch (Exception ex) {
+            log.warn("No se pudo hacer lookup del usuario {}: {}", usuarioId, ex.getMessage());
+        }
+        return new UsuarioDestinatario(null, null);
     }
 
     /** Vuelca al SesionVirtual los campos devueltos por streaming-service. */

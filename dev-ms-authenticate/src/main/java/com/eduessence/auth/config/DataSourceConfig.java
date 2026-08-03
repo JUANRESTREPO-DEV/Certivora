@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
@@ -25,7 +27,8 @@ import java.util.Arrays;
  * En {@code dev} y {@code qa} la password viene del .env, no hace falta
  * activar esta clase — Spring Boot crea el DataSource automáticamente.
  */
-//@Configuration
+@Configuration
+@Profile("prod")
 public class DataSourceConfig {
 
     @Autowired
@@ -81,6 +84,6 @@ public class DataSourceConfig {
         GetSecretValueResponse res = client.getSecretValue(req);
 
         JSONObject secretJson = new JSONObject(res.secretString());
-        return secretJson.getString("password");
+        return secretJson.getString("RDS_PASSWORD");
     }
 }

@@ -21,6 +21,13 @@ public interface PagosServiceClient {
     Map<String, Object> obtenerPago(@PathVariable("id") Long pagoId);
 
     /**
+     * Mapa {@code {cursoId: ingresosCop}} — suma de pagos APROBADOS por curso.
+     * Usado por el reporte de matrículas / ingresos.
+     */
+    @GetMapping("/internal/pagos/ingresos-por-curso")
+    Map<String, Object> ingresosPorCurso();
+
+    /**
      * Crea la fila {@code pago} (estado {@code PENDIENTE_LLAVE} /
      * {@code PENDIENTE_CONFIRMACION} / {@code GRATIS_POR_CUPON}). El body
      * acepta {@code cursoId}, {@code montoCurso}, {@code cuponCodigo}.

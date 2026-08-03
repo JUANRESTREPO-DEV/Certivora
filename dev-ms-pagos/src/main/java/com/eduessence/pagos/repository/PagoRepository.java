@@ -31,4 +31,16 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             ORDER BY fecha_creacion ASC
             """, nativeQuery = true)
     List<Pago> findAllByEstadoInOrderByFechaCreacionAsc(@Param("estados") List<String> estados);
+
+    /**
+     * Suma de {@code montoCop} de todos los pagos APROBADOS por curso.
+     * Agrupado por {@code cursoId}. Usado en el reporte de matrículas.
+     */
+    @Query(value = """
+            SELECT curso_id AS cursoId, COALESCE(SUM(monto_cop), 0) AS ingresos
+            FROM pago
+            WHERE estado = 'APROBADO'
+            GROUP BY curso_id
+            """, nativeQuery = true)
+    List<Object[]> sumIngresosAprobadosPorCurso();
 }

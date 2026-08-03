@@ -37,4 +37,22 @@ public class CertificadosServiceFallback implements CertificadosServiceClient {
         log.warn("[Fallback] certificados-service no disponible (clonar template {}). Payload: {}", id, payload);
         return Map.of();
     }
+
+    @Override
+    public Map<String, Object> actualizarTemplate(Long id, Map<String, Object> payload) {
+        log.warn("[Fallback] certificados-service no disponible (actualizar template {}). Payload: {}", id, payload);
+        return Map.of();
+    }
+
+    @Override
+    public Map<String, Object> borrarTemplate(Long id) {
+        log.warn("[Fallback] certificados-service no disponible (borrar template {})", id);
+        return Map.of();
+    }
+
+    @Override
+    public Map<String, Object> emitidosPorCurso() {
+        log.warn("[Fallback] certificados-service no disponible (emitidosPorCurso)");
+        return Map.of("response", Map.of());
+    }
 }

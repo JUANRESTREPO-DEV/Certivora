@@ -13,4 +13,14 @@ public interface CertificadoEmitidoRepository extends JpaRepository<CertificadoE
     Optional<CertificadoEmitido> findByMatriculaId(Long matriculaId);
     List<CertificadoEmitido> findAllByUsuarioIdOrderByFechaEmisionDesc(Long usuarioId);
     long countByFechaEmisionBetween(java.time.LocalDateTime from, java.time.LocalDateTime to);
+
+    long countByCursoId(Long cursoId);
+
+    /** Devuelve [cursoId, count] para poblar el reporte de certificados. */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT curso_id AS cursoId, COUNT(*) AS emitidos
+            FROM certificado_emitido
+            GROUP BY curso_id
+            """, nativeQuery = true)
+    List<Object[]> countEmitidosPorCurso();
 }

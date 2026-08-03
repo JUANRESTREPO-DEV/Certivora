@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sesión cancelada · ${empresaNombre}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f7fc;font-family:'Segoe UI',Arial,sans-serif;color:#0a1d3f;">
+
+  <div style="display:none;max-height:0;overflow:hidden;">
+    Cancelamos la sesión "${tituloSesion}" de ${nombreCurso}.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color:#f4f7fc;padding:32px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:600px;background-color:#ffffff;border-radius:14px;overflow:hidden;
+                      box-shadow:0 8px 24px -12px rgba(217,119,6,0.15);">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,#d97706 0%,#b45309 100%);
+                       padding:28px 32px;color:#ffffff;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;opacity:0.9;">
+                Cancelación · ${empresaNombre}
+              </p>
+              <p style="margin:18px 0 0;font-size:24px;font-weight:800;line-height:1.2;">
+                Se canceló una sesión de tu curso
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:36px 32px 12px;">
+              <p style="margin:0 0 16px;font-size:17px;font-weight:600;">Hola ${nombreDestinatario},</p>
+              <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#374151;">
+                Te avisamos que la sesión <strong>${tituloSesion}</strong> del curso
+                <strong>${nombreCurso}</strong> fue cancelada.
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background:#fef3c7;border-left:4px solid #d97706;border-radius:8px;
+                            margin:20px 0;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:700;text-transform:uppercase;
+                              letter-spacing:0.08em;color:#92400e;">
+                      Fecha original programada
+                    </p>
+                    <p style="margin:0;font-size:15px;color:#78350f;font-weight:600;">
+                      ${fechaSesion}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              #if(${razon} && ${razon} != "")
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;
+                            margin:0 0 24px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:700;text-transform:uppercase;
+                              letter-spacing:0.08em;color:#6b7280;">
+                      Motivo indicado por el organizador
+                    </p>
+                    <p style="margin:0;font-size:14px;line-height:1.55;color:#4b5563;font-style:italic;">
+                      ${razon}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              #end
+
+              <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#4b5563;">
+                Sabemos que tu tiempo es valioso. Si tienes dudas o necesitas apoyo,
+                escríbenos a <a href="mailto:${empresaCorreo}"
+                                style="color:#004aad;text-decoration:none;font-weight:600;">${empresaCorreo}</a>.
+              </p>
+
+              <p style="margin:0 0 8px;font-size:14px;color:#374151;">
+                Un saludo,
+              </p>
+              <p style="margin:0;font-size:14px;color:#374151;font-weight:600;">
+                El equipo de ${empresaNombre}
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;
+                       text-align:center;">
+              <p style="margin:0;font-size:12px;color:#6b7280;">
+                <a href="${empresaSitioWeb}"
+                   style="color:#004aad;text-decoration:none;font-weight:600;">${empresaSitioWeb}</a>
+                &nbsp;·&nbsp; ${empresaCorreo}
+              </p>
+              <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">
+                © ${anioActual} ${empresaNombre} — ${fecha}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

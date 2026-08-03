@@ -1,6 +1,7 @@
 package com.eduessence.cursos.model.dto.request;
 
-import com.eduessence.cursos.model.enums.ModalidadTipo;
+import com.eduessence.cursos.model.dto.ModalidadCursoDTO;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -42,13 +43,15 @@ public class ActualizarCursoRequest {
 
     private Integer cupoMaximo;
 
-    @PositiveOrZero
-    private Integer precioCop;
-
     @Positive
     private Integer intensidadHoras;
 
     private List<Long> instructorUsuarioIds;
 
-    private List<ModalidadTipo> modalidades;
+    /**
+     * Lista completa de modalidades ofrecidas (upsert por tipo). Si se envía,
+     * reemplaza la configuración actual respetando las reglas de precio.
+     */
+    @Valid
+    private List<ModalidadCursoDTO> modalidades;
 }

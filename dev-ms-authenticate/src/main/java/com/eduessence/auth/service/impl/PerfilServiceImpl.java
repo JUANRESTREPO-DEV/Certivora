@@ -3,22 +3,30 @@ package com.eduessence.auth.service.impl;
 import com.eduessence.auth.exception.AuthApiException;
 import com.eduessence.auth.exception.ServerApiStatusCode;
 import com.eduessence.auth.model.dto.ActualizarPerfilRequest;
+import com.eduessence.auth.model.dto.CambiarPasswordRequest;
 import com.eduessence.auth.model.dto.PerfilResponse;
+import com.eduessence.auth.model.entity.AuditLog;
 import com.eduessence.auth.model.entity.Persona;
 import com.eduessence.auth.model.entity.Usuario;
+import com.eduessence.auth.repository.AuditLogRepository;
 import com.eduessence.auth.repository.UsuarioRepository;
 import com.eduessence.auth.service.PerfilService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PerfilServiceImpl implements PerfilService {
 
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuditLogRepository auditLogRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -56,6 +64,37 @@ public class PerfilServiceImpl implements PerfilService {
         usuario.setAvatarUrl(avatarUrl);
         usuarioRepository.save(usuario);
         return toResponse(usuario);
+    }
+
+    @Override
+    @Transactional
+    public void cambiarPassword(Long usuarioId, CambiarPasswordRequest req) {
+        Usuario usuario = findUsuario(usuarioId);
+        if (!passwordEncoder.matches(req.getCurrentPassword(), usuario.getPasswordHash())) {
+            audit(usuarioId, "PASSWORD_CAMBIADO", "FALLIDO", "Contraseña actual incorrecta");
+            throw new AuthApiException(ServerApiStatusCode.CREDENCIALES_INVALIDAS,
+                    "La contraseña actual no es correcta");
+        }
+        if (passwordEncoder.matches(req.getNewPassword(), usuario.getPasswordHash())) {
+            throw new AuthApiException(ServerApiStatusCode.PASSWORD_DEBIL,
+                    "La nueva contraseña debe ser distinta a la actual");
+        }
+        usuario.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
+        usuarioRepository.save(usuario);
+        audit(usuarioId, "PASSWORD_CAMBIADO", "OK", "Cambio desde /perfil");
+    }
+
+    private void audit(Long usuarioId, String accion, String resultado, String detalle) {
+        try {
+            auditLogRepository.save(AuditLog.builder()
+                    .usuarioId(usuarioId)
+                    .accion(accion)
+                    .resultado(resultado)
+                    .detalle(detalle)
+                    .build());
+        } catch (Exception ex) {
+            log.warn("No se pudo registrar audit {}: {}", accion, ex.getMessage());
+        }
     }
 
     private Usuario findUsuario(Long id) {

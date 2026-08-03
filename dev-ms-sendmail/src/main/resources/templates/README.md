@@ -39,11 +39,32 @@ Los templates viven en el bucket configurado por `BUCKET_TEMPLATE` (env var). El
 los descarga vía `S3TemplateLoader.descargar(bucket, key)` donde `key` es el campo
 `path_template` de la tabla `email_template` (ej: `templates/welcome.html`).
 
-### Con AWS CLI (desde la raíz `dev-ms-sendmail/src/main/resources`)
+### Dev (local) — script helper
+
+Dev no tiene CI/CD (todo corre en tu máquina), pero el sendmail local igual
+lee los HTML desde S3. Un solo comando desde cualquier PowerShell:
+
+```powershell
+pwsh C:\Desarrollo\Sistema_Eventos_Dev\infra\10-sync-templates-dev.ps1
+```
+
+Sincroniza esta carpeta → `s3://edu-templates-dev/templates/`. Idempotente
+— solo sube archivos cambiados.
+
+### QA y PROD — auto-sync en CI/CD
+
+Los workflows en el repo `Certivora-dev-ms-sendmail` sincronizan
+automáticamente en cada push a `qa` / `main`:
+
+- `infra/deploy-qa-workflow-template.yml` → `edu-templates-qa`
+- `infra/deploy-prod-workflow-template.yml` → `edu-templates-prod`
+
+### Manual con AWS CLI (fallback / hotfix)
+
+Desde la raíz `dev-ms-sendmail/src/main/resources`:
 
 ```bash
-# Sube los 8 templates al bucket que tengas en BUCKET_TEMPLATE
-aws s3 sync templates/ s3://eduessence-templates-dev/templates/ \
+aws s3 sync templates/ s3://edu-templates-dev/templates/ \
   --exclude "README.md" \
   --content-type "text/html; charset=utf-8" \
   --cache-control "public, max-age=300"
@@ -51,21 +72,19 @@ aws s3 sync templates/ s3://eduessence-templates-dev/templates/ \
 
 ### Con la consola AWS
 
-1. S3 → bucket `eduessence-templates-{env}` → carpeta `templates/`
-2. Drag-and-drop los 8 `.html` (excluí el `README.md`)
+1. S3 → bucket `edu-templates-{env}` → carpeta `templates/`
+2. Drag-and-drop los `.html` (excluí el `README.md`)
 3. En las propiedades de cada archivo, setear:
    - `Content-Type`: `text/html; charset=utf-8`
    - `Cache-Control`: `public, max-age=300`
 
-### Para cada perfil
+### Buckets por perfil
 
-Cambia el bucket destino según el env activo:
-
-| Env  | Bucket                                |
-|------|---------------------------------------|
-| dev  | `eduessence-templates-dev`            |
-| qa   | `eduessence-templates-qa`             |
-| prod | `eduessence-templates-prod`           |
+| Env  | Bucket                       |
+|------|------------------------------|
+| dev  | `edu-templates-dev`          |
+| qa   | `edu-templates-qa`           |
+| prod | `edu-templates-prod`         |
 
 ## Cómo probar un template localmente
 

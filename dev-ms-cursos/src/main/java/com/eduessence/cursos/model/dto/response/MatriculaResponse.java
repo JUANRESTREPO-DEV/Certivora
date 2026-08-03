@@ -34,6 +34,12 @@ public class MatriculaResponse {
     /** ID del pago vinculado (en dev-ms-pagos). Null si gratis o cortesía. */
     private Long pagoId;
 
+    /** Precio COP congelado al inscribirse. Null si es cortesía o gratis. */
+    private BigDecimal precioCopPagado;
+
+    /** Token público de la escarapela — usable en /escarapela/{token}. Null si no aplica. */
+    private String escarapelaToken;
+
     /** True si fue creada por admin sin cobro. */
     private Boolean cortesia;
 

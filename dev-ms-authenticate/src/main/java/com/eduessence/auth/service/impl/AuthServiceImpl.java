@@ -25,6 +25,7 @@ import com.eduessence.auth.service.AuthService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +65,9 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final SendmailServiceClient sendmail;
+
+    @Value("${app.frontend.url}")
+    private String appFrontendUrl;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -176,7 +180,8 @@ public class AuthServiceImpl implements AuthService {
                             "nombre", persona.getNombres()
                     ),
                     "variables", Map.of(
-                            "nombreDestinatario", persona.getNombres()
+                            "nombreDestinatario", persona.getNombres(),
+                            "urlLogin", appFrontendUrl + "/login"
                     )
             ));
         } catch (Exception ex) {
@@ -204,6 +209,8 @@ public class AuthServiceImpl implements AuthService {
 
             try {
                 String nombre = usuario.getPersona() != null ? usuario.getPersona().getNombres() : "";
+                // Self-service (usuario olvidó su clave) → /reset-password.
+                // Admin-creado usa /set-password desde UsuariosAdminServiceImpl.
                 sendmail.enviarEmail(Map.of(
                         "nombreTemplate", "RESET_PASSWORD",
                         "destinatario", Map.of(
@@ -212,7 +219,8 @@ public class AuthServiceImpl implements AuthService {
                         ),
                         "variables", Map.of(
                                 "token", token,
-                                "minutos", RESET_TOKEN_MINUTOS
+                                "minutos", RESET_TOKEN_MINUTOS,
+                                "urlReset", appFrontendUrl + "/reset-password?token=" + token
                         )
                 ));
             } catch (Exception ex) {

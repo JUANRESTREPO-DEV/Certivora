@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
@@ -17,7 +19,8 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 import javax.sql.DataSource;
 import java.util.Arrays;
 
-//@Configuration
+@Configuration
+@Profile("prod")
 public class DataSourceConfig {
 
     @Autowired private Environment env;
@@ -46,6 +49,6 @@ public class DataSourceConfig {
                 .credentialsProvider(DefaultCredentialsProvider.create()).build();
         GetSecretValueResponse res = client.getSecretValue(
                 GetSecretValueRequest.builder().secretId(secretName).build());
-        return new JSONObject(res.secretString()).getString("password");
+        return new JSONObject(res.secretString()).getString("RDS_PASSWORD");
     }
 }

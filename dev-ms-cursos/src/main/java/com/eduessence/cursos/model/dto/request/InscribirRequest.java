@@ -14,8 +14,20 @@ import java.util.Set;
 @Data
 public class InscribirRequest {
 
-    /** Modalidades elegidas. Deben ser un subset de las activas del curso. */
-    @NotEmpty
+    /**
+     * Modalidad única elegida para la compra. Si el curso tiene GRABADO como
+     * bonus (convive con vivo activo), se agrega automáticamente al acceso
+     * del usuario sin costo extra.
+     * <p>Campo preferido. Si es {@code null}, se usa el primero de
+     * {@link #modalidades} por back-compat.
+     */
+    private ModalidadTipo modalidad;
+
+    /**
+     * @deprecated usar {@link #modalidad}. Se mantiene para el front antiguo
+     * que enviaba un set.
+     */
+    @Deprecated
     private Set<ModalidadTipo> modalidades;
 
     /**

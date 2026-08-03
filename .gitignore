@@ -5,6 +5,12 @@
 **/.git
 
 # =========================================
+# EXE con credenciales AWS embebidas (no subir nunca)
+# =========================================
+
+EduessenceQA-EncenderApagar.exe
+
+# =========================================
 # VARIABLES DE ENTORNO
 # =========================================
 

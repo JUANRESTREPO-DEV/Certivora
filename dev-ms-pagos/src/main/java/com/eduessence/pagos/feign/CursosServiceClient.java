@@ -1,8 +1,11 @@
 package com.eduessence.pagos.feign;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+
+import java.util.Map;
 
 @FeignClient(name = "cursos-service", path = "/cursos", fallback = CursosServiceFallback.class)
 public interface CursosServiceClient {
@@ -21,4 +24,11 @@ public interface CursosServiceClient {
      */
     @PostMapping("/internal/pagos/{pagoId}/aprobado")
     void notificarPagoAprobado(@PathVariable("pagoId") Long pagoId);
+
+    /**
+     * Datos básicos del curso (id, nombre, slug) para notificaciones.
+     * Respuesta: {@code { statusCode, response: { id, nombre, slug } }}
+     */
+    @GetMapping("/internal/cursos/{id}/basico")
+    Map<String, Object> cursoBasico(@PathVariable("id") Long cursoId);
 }

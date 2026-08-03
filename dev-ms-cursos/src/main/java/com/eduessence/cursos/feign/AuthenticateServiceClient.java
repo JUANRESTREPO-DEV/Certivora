@@ -31,4 +31,16 @@ public interface AuthenticateServiceClient {
      */
     @GetMapping("/api/usuarios/lookup")
     Map<String, Object> lookup(@RequestParam("ids") List<Long> ids);
+
+    /**
+     * Listado paginado de usuarios activos. Se usa para broadcasts (invitación
+     * a nuevo curso, etc.). Respuesta:
+     * <pre>
+     *   { statusCode, response: { total, totalPages, page, size,
+     *                             items: [{id, email, nombres, apellidos}] } }
+     * </pre>
+     */
+    @GetMapping("/internal/usuarios/activos")
+    Map<String, Object> listarActivos(@RequestParam("page") int page,
+                                       @RequestParam("size") int size);
 }

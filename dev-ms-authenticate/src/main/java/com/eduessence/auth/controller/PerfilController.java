@@ -3,6 +3,7 @@ package com.eduessence.auth.controller;
 import com.eduessence.auth.exception.AuthApiException;
 import com.eduessence.auth.exception.ServerApiStatusCode;
 import com.eduessence.auth.model.dto.ActualizarPerfilRequest;
+import com.eduessence.auth.model.dto.CambiarPasswordRequest;
 import com.eduessence.auth.model.dto.GeneralResponseDTO;
 import com.eduessence.auth.model.dto.PerfilResponse;
 import com.eduessence.auth.service.PerfilService;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -49,6 +51,19 @@ public class PerfilController {
         PerfilResponse data = perfilService.actualizar(userId, request);
         return ResponseEntity.ok(GeneralResponseDTO.<PerfilResponse>builder()
                 .statusCode(200).serviceName(SERVICE).message("Perfil actualizado").response(data).build());
+    }
+
+    @Operation(summary = "Cambiar mi contraseña")
+    @PostMapping("/cambiar-password")
+    public ResponseEntity<GeneralResponseDTO<Void>> cambiarPassword(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @Valid @RequestBody CambiarPasswordRequest request
+    ) {
+        Long userId = parseUserId(userIdHeader);
+        perfilService.cambiarPassword(userId, request);
+        return ResponseEntity.ok(GeneralResponseDTO.<Void>builder()
+                .statusCode(200).serviceName(SERVICE).message("Contraseña actualizada")
+                .response(null).build());
     }
 
     private Long parseUserId(String header) {

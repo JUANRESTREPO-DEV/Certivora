@@ -15,4 +15,15 @@ public class AuthenticateServiceFallback implements AuthenticateServiceClient {
         log.warn("authenticate-service offline — lookup({}) devuelve vacío", ids);
         return Map.of("statusCode", 503, "response", List.of());
     }
+
+    @Override
+    public Map<String, Object> listarActivos(int page, int size) {
+        log.warn("authenticate-service offline — listarActivos(page={}, size={}) devuelve vacío",
+                page, size);
+        return Map.of("statusCode", 503, "response", Map.of(
+                "total", 0, "totalPages", 0,
+                "page", page, "size", size,
+                "items", List.of()
+        ));
+    }
 }

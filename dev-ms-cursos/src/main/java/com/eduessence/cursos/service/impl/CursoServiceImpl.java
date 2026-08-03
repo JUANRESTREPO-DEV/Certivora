@@ -3,6 +3,7 @@ package com.eduessence.cursos.service.impl;
 import com.eduessence.cursos.exception.CursosApiException;
 import com.eduessence.cursos.exception.ServerApiStatusCode;
 import com.eduessence.cursos.feign.AuthenticateServiceClient;
+import com.eduessence.cursos.model.dto.ModalidadCursoDTO;
 import com.eduessence.cursos.model.dto.request.ActualizarCursoRequest;
 import com.eduessence.cursos.model.dto.request.CrearCursoRequest;
 import com.eduessence.cursos.model.dto.response.CursoResponse;
@@ -15,6 +16,7 @@ import com.eduessence.cursos.model.enums.EstadoCurso;
 import com.eduessence.cursos.model.enums.ModalidadTipo;
 import com.eduessence.cursos.repository.CursoRepository;
 import com.eduessence.cursos.service.CursoService;
+import com.eduessence.cursos.service.InvitacionCursoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ public class CursoServiceImpl implements CursoService {
 
     private final CursoRepository cursoRepository;
     private final AuthenticateServiceClient authClient;
+    private final InvitacionCursoService invitacionCursoService;
 
     @Override
     @Transactional
@@ -57,6 +60,8 @@ public class CursoServiceImpl implements CursoService {
         // intenta dejar el id en null explícitamente.
         boolean emite = Boolean.TRUE.equals(req.getEmiteCertificado());
 
+        validarReglasPrecio(req.getModalidades());
+
         Curso curso = Curso.builder()
                 .nombre(req.getNombre())
                 .slug(req.getSlug().toLowerCase())
@@ -73,15 +78,22 @@ public class CursoServiceImpl implements CursoService {
                 .fechaFin(req.getFechaFin())
                 .fechaLimiteInscripcion(req.getFechaLimiteInscripcion())
                 .cupoMaximo(req.getCupoMaximo())
-                .precioCop(req.getPrecioCop() == null ? 0 : req.getPrecioCop())
+                .precioCop(precioMinimoAsInt(req.getModalidades()))
                 .intensidadHoras(req.getIntensidadHoras())
                 .build();
 
         sincronizarInstructores(curso, req.getInstructorUsuarioIds());
 
         Set<CursoModalidad> mods = new HashSet<>();
-        for (ModalidadTipo t : req.getModalidades()) {
-            mods.add(CursoModalidad.builder().curso(curso).tipo(t).activo(true).build());
+        for (ModalidadCursoDTO m : req.getModalidades()) {
+            mods.add(CursoModalidad.builder()
+                    .curso(curso)
+                    .tipo(m.getTipo())
+                    .precioCop(m.getPrecioCop())
+                    .sede(m.getSede())
+                    .cupoModalidad(m.getCupoModalidad())
+                    .activo(m.getActivo() == null ? true : m.getActivo())
+                    .build());
         }
         curso.setModalidades(mods);
 
@@ -119,10 +131,14 @@ public class CursoServiceImpl implements CursoService {
             } else if (req.getTemplateCertificadoId() != null) {
                 curso.setTemplateCertificadoId(req.getTemplateCertificadoId());
             }
-            if (emite && curso.getTemplateCertificadoId() == null) {
-                throw new CursosApiException(ServerApiStatusCode.DATOS_INVALIDOS,
-                        "Si el curso emite certificado debes elegir una plantilla");
-            }
+            // NOTA: no validamos que templateCertificadoId esté presente cuando
+            // emite=true, mismo criterio que crear(). El front sigue un flujo
+            // de 2 pasos: primero guarda el curso con emiteCertificado=true y
+            // templateCertificadoId=null, luego crea la plantilla en el MS
+            // certificados y hace un segundo PUT con el id resuelto. Si por
+            // algún error el segundo PUT no llega, la emisión posterior fallará
+            // limpio con "curso sin plantilla configurada" — pero no bloqueamos
+            // el guardado del curso.
         } else if (req.getTemplateCertificadoId() != null) {
             curso.setTemplateCertificadoId(req.getTemplateCertificadoId());
         }
@@ -131,7 +147,6 @@ public class CursoServiceImpl implements CursoService {
         if (req.getFechaFin() != null) curso.setFechaFin(req.getFechaFin());
         if (req.getFechaLimiteInscripcion() != null) curso.setFechaLimiteInscripcion(req.getFechaLimiteInscripcion());
         if (req.getCupoMaximo() != null) curso.setCupoMaximo(req.getCupoMaximo());
-        if (req.getPrecioCop() != null) curso.setPrecioCop(req.getPrecioCop());
         if (req.getIntensidadHoras() != null) curso.setIntensidadHoras(req.getIntensidadHoras());
 
         if (req.getInstructorUsuarioIds() != null && !req.getInstructorUsuarioIds().isEmpty()) {
@@ -139,20 +154,86 @@ public class CursoServiceImpl implements CursoService {
         }
 
         if (req.getModalidades() != null && !req.getModalidades().isEmpty()) {
-            // Reemplazo total de modalidades; orphanRemoval limpia las anteriores.
-            Set<ModalidadTipo> nuevas = new HashSet<>(req.getModalidades());
-            curso.getModalidades().removeIf(m -> !nuevas.contains(m.getTipo()));
+            validarReglasPrecio(req.getModalidades());
+            // Upsert por tipo: mantenemos las que siguen y actualizamos su
+            // precio/sede/cupo; borramos las que salieron; creamos las nuevas.
+            Map<ModalidadTipo, ModalidadCursoDTO> nuevas = req.getModalidades().stream()
+                    .collect(Collectors.toMap(ModalidadCursoDTO::getTipo, m -> m));
+            curso.getModalidades().removeIf(m -> !nuevas.containsKey(m.getTipo()));
+            for (CursoModalidad m : curso.getModalidades()) {
+                ModalidadCursoDTO in = nuevas.get(m.getTipo());
+                m.setPrecioCop(in.getPrecioCop());
+                m.setSede(in.getSede());
+                m.setCupoModalidad(in.getCupoModalidad());
+                m.setActivo(in.getActivo() == null ? true : in.getActivo());
+            }
             Set<ModalidadTipo> existentes = curso.getModalidades().stream()
                     .map(CursoModalidad::getTipo).collect(Collectors.toSet());
-            for (ModalidadTipo t : nuevas) {
-                if (!existentes.contains(t)) {
+            for (ModalidadCursoDTO in : nuevas.values()) {
+                if (!existentes.contains(in.getTipo())) {
                     curso.getModalidades().add(CursoModalidad.builder()
-                            .curso(curso).tipo(t).activo(true).build());
+                            .curso(curso)
+                            .tipo(in.getTipo())
+                            .precioCop(in.getPrecioCop())
+                            .sede(in.getSede())
+                            .cupoModalidad(in.getCupoModalidad())
+                            .activo(in.getActivo() == null ? true : in.getActivo())
+                            .build());
                 }
             }
+            curso.setPrecioCop(precioMinimoAsInt(req.getModalidades()));
         }
 
         return toResponse(cursoRepository.save(curso));
+    }
+
+    /**
+     * Reglas de precio por modalidad:
+     *  - VIRTUAL_LIVE / PRESENCIAL activas: precio obligatorio (≥ 0).
+     *  - GRABADO en curso híbrido (con vivo activo): precio DEBE ser null (bonus).
+     *  - GRABADO como única activa: precio obligatorio.
+     */
+    private static void validarReglasPrecio(List<ModalidadCursoDTO> mods) {
+        if (mods == null || mods.isEmpty()) return;
+        boolean hayVivoActivo = mods.stream()
+                .filter(m -> Boolean.TRUE.equals(m.getActivo()) || m.getActivo() == null)
+                .anyMatch(m -> m.getTipo() == ModalidadTipo.VIRTUAL_LIVE
+                            || m.getTipo() == ModalidadTipo.PRESENCIAL);
+
+        for (ModalidadCursoDTO m : mods) {
+            boolean activo = m.getActivo() == null || Boolean.TRUE.equals(m.getActivo());
+            if (!activo) continue;
+
+            if (m.getTipo() == ModalidadTipo.VIRTUAL_LIVE
+                    || m.getTipo() == ModalidadTipo.PRESENCIAL) {
+                if (m.getPrecioCop() == null) {
+                    throw new CursosApiException(ServerApiStatusCode.DATOS_INVALIDOS,
+                            "La modalidad " + m.getTipo() + " requiere un precio");
+                }
+            } else if (m.getTipo() == ModalidadTipo.GRABADO) {
+                if (hayVivoActivo && m.getPrecioCop() != null) {
+                    throw new CursosApiException(ServerApiStatusCode.DATOS_INVALIDOS,
+                            "GRABADO no puede tener precio cuando el curso ofrece vivo — "
+                                    + "va incluido como bonus");
+                }
+                if (!hayVivoActivo && m.getPrecioCop() == null) {
+                    throw new CursosApiException(ServerApiStatusCode.DATOS_INVALIDOS,
+                            "GRABADO como única modalidad requiere un precio");
+                }
+            }
+        }
+    }
+
+    /** Mínimo de precios activos, para el campo legacy {@code curso.precio_cop}. */
+    private static Integer precioMinimoAsInt(List<ModalidadCursoDTO> mods) {
+        if (mods == null) return 0;
+        return mods.stream()
+                .filter(m -> Boolean.TRUE.equals(m.getActivo()) || m.getActivo() == null)
+                .map(ModalidadCursoDTO::getPrecioCop)
+                .filter(p -> p != null)
+                .min(BigDecimal::compareTo)
+                .map(BigDecimal::intValue)
+                .orElse(0);
     }
 
     private static String emptyToNull(String s) {
@@ -194,8 +275,17 @@ public class CursoServiceImpl implements CursoService {
     @Transactional
     public CursoResponse activar(Long id) {
         Curso c = findById(id);
+        boolean transicionABorradorAActivo = c.getEstado() != EstadoCurso.ACTIVO;
         c.setEstado(EstadoCurso.ACTIVO);
-        return toResponse(cursoRepository.save(c));
+        CursoResponse response = toResponse(cursoRepository.save(c));
+
+        // Broadcast de invitación solo cuando pasa a ACTIVO por primera vez
+        // (evita spam si el admin re-guarda o re-activa). El envío es async —
+        // no afecta el response al cliente.
+        if (transicionABorradorAActivo) {
+            invitacionCursoService.broadcastActivacion(id);
+        }
+        return response;
     }
 
     @Override
@@ -266,6 +356,24 @@ public class CursoServiceImpl implements CursoService {
                 .map(CursoModalidad::getTipo)
                 .collect(Collectors.toSet());
 
+        List<ModalidadCursoDTO> modalidadesDetalle = c.getModalidades().stream()
+                .filter(m -> Boolean.TRUE.equals(m.getActivo()))
+                .map(m -> ModalidadCursoDTO.builder()
+                        .tipo(m.getTipo())
+                        .precioCop(m.getPrecioCop())
+                        .sede(m.getSede())
+                        .cupoModalidad(m.getCupoModalidad())
+                        .activo(m.getActivo())
+                        .build())
+                .sorted((a, b) -> a.getTipo().name().compareTo(b.getTipo().name()))
+                .toList();
+
+        BigDecimal precioDesde = modalidadesDetalle.stream()
+                .map(ModalidadCursoDTO::getPrecioCop)
+                .filter(p -> p != null)
+                .min(BigDecimal::compareTo)
+                .orElse(null);
+
         return CursoResponse.builder()
                 .id(c.getId()).nombre(c.getNombre()).slug(c.getSlug())
                 .descripcionCorta(c.getDescripcionCorta()).descripcionLarga(c.getDescripcionLarga())
@@ -278,11 +386,15 @@ public class CursoServiceImpl implements CursoService {
                 .estado(c.getEstado())
                 .fechaInicio(c.getFechaInicio()).fechaFin(c.getFechaFin())
                 .fechaLimiteInscripcion(c.getFechaLimiteInscripcion())
-                .cupoMaximo(c.getCupoMaximo()).precioCop(c.getPrecioCop())
+                .cupoMaximo(c.getCupoMaximo())
+                .precioDesdeCop(precioDesde)
+                .precioCop(c.getPrecioCop())
                 .intensidadHoras(c.getIntensidadHoras())
                 .instructorUsuarioId(c.getInstructorUsuarioId())
                 .instructores(enriquecer(c.getInstructores()))
-                .modalidades(modalidades).hibrido(modalidades.size() >= 2)
+                .modalidades(modalidades)
+                .modalidadesDetalle(modalidadesDetalle)
+                .hibrido(modalidades.size() >= 2)
                 .build();
     }
 

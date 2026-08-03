@@ -94,12 +94,12 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
             // 6. Fecha
             addText(doc, posiciones, "fecha", fechaFormateada, 10);
 
-            // 7. QR
-            if (qrPng != null && qrPng.length > 0) {
-                JSONObject qrPos = posiciones.optJSONObject("qr");
-                float x = qrPos != null ? qrPos.optFloat("x", 700f) : 700f;
-                float y = qrPos != null ? qrPos.optFloat("y", 80f) : 80f;
-                float size = qrPos != null ? qrPos.optFloat("size", 100f) : 100f;
+            // 7. QR — solo si el editor visual lo arrastró al canvas.
+            JSONObject qrPos = posiciones.optJSONObject("qr");
+            if (qrPos != null && qrPng != null && qrPng.length > 0) {
+                float x = qrPos.optFloat("x", 700f);
+                float y = qrPos.optFloat("y", 80f);
+                float size = qrPos.optFloat("size", 100f);
                 float pageW = pdf.getDefaultPageSize().getWidth();
                 float pageH = pdf.getDefaultPageSize().getHeight();
                 boolean esPct = x <= 100f && y <= 100f && size <= 100f;
@@ -130,17 +130,18 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
     private void addText(Document doc, JSONObject posiciones, String campo, String texto, float defaultFontSize) {
         if (texto == null) return;
         JSONObject pos = posiciones.optJSONObject(campo);
-        float x = pos != null ? pos.optFloat("x", 100f) : 100f;
-        float y = pos != null ? pos.optFloat("y", 400f) : 400f;
+        // Si la variable NO fue arrastrada al canvas por el editor visual, no la
+        // pintamos. Antes caíamos a coords default (x=100, y=400) y aparecía
+        // texto extraviado en el borde de todos los certificados.
+        if (pos == null) return;
+        float x = pos.optFloat("x", 100f);
+        float y = pos.optFloat("y", 400f);
         // Acepta tanto "size" (formato nuevo del editor visual) como "fontSize" (formato legado).
-        float fontSize = defaultFontSize;
-        if (pos != null) {
-            fontSize = pos.optFloat("size", pos.optFloat("fontSize", defaultFontSize));
-        }
-        float width = pos != null ? pos.optFloat("width", 500f) : 500f;
-        String prefix = pos != null ? pos.optString("prefix", "") : "";
-        String alignStr = pos != null ? pos.optString("align", "left") : "left";
-        String colorHex = pos != null ? pos.optString("color", "") : "";
+        float fontSize = pos.optFloat("size", pos.optFloat("fontSize", defaultFontSize));
+        float width = pos.optFloat("width", 500f);
+        String prefix = pos.optString("prefix", "");
+        String alignStr = pos.optString("align", "left");
+        String colorHex = pos.optString("color", "");
 
         TextAlignment align = switch (alignStr.toLowerCase()) {
             case "center" -> TextAlignment.CENTER;

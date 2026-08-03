@@ -32,4 +32,20 @@ public interface CertificadosServiceClient {
      */
     @PostMapping("/api/templates/{id}/clonar")
     Map<String, Object> clonarTemplate(@PathVariable("id") Long id, @RequestBody Map<String, Object> payload);
+
+    /** Actualiza una plantilla existente. Body igual que crear. */
+    @PutMapping("/api/templates/{id}")
+    Map<String, Object> actualizarTemplate(@PathVariable("id") Long id,
+                                            @RequestBody Map<String, Object> payload);
+
+    /** Borra (soft-delete) una plantilla. */
+    @DeleteMapping("/api/templates/{id}")
+    Map<String, Object> borrarTemplate(@PathVariable("id") Long id);
+
+    /**
+     * Mapa {@code {cursoId: emitidos}} — conteo de certificados emitidos por
+     * curso. Usado por el reporte de certificados.
+     */
+    @GetMapping("/internal/certificados/emitidos-por-curso")
+    Map<String, Object> emitidosPorCurso();
 }

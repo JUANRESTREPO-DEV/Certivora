@@ -4,6 +4,8 @@ import com.eduessence.cursos.model.enums.ModalidadTipo;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "curso_modalidad", uniqueConstraints = @UniqueConstraint(
         name = "uk_curso_modalidad",
@@ -35,6 +37,16 @@ public class CursoModalidad {
     /** Solo para PRESENCIAL/VIRTUAL_LIVE: cupo específico de la modalidad. */
     @Column(name = "cupo_modalidad")
     private Integer cupoModalidad;
+
+    /**
+     * Precio COP de esta modalidad. Reglas de negocio:
+     *  - VIRTUAL_LIVE / PRESENCIAL activas: obligatorio (> 0 o 0 si es gratis).
+     *  - GRABADO en curso que tiene ≥1 modalidad en vivo: DEBE ser {@code null}
+     *    (se otorga como bonus con la compra de la modalidad en vivo).
+     *  - GRABADO como única modalidad activa del curso: obligatorio.
+     */
+    @Column(name = "precio_cop", precision = 12, scale = 0)
+    private BigDecimal precioCop;
 
     @Column(nullable = false)
     private Boolean activo;

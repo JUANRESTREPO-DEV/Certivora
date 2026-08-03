@@ -2,6 +2,7 @@ package com.eduessence.cursos.service.impl;
 
 import com.eduessence.cursos.exception.CursosApiException;
 import com.eduessence.cursos.exception.ServerApiStatusCode;
+import com.eduessence.cursos.feign.AuthenticateServiceClient;
 import com.eduessence.cursos.feign.PagosServiceClient;
 import com.eduessence.cursos.feign.SendmailServiceClient;
 import com.eduessence.cursos.model.dto.request.CancelarMatriculaRequest;
@@ -24,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -45,6 +47,7 @@ public class MatriculaServiceImpl implements MatriculaService {
     private final CursoRepository cursoRepository;
     private final PagosServiceClient pagosClient;
     private final SendmailServiceClient sendmail;
+    private final AuthenticateServiceClient authClient;
 
     /** Horas que dura la reserva temporal del cupo mientras se confirma el pago. */
     @Value("${app.matricula.reserva-horas:24}")
@@ -62,16 +65,15 @@ public class MatriculaServiceImpl implements MatriculaService {
         // R-INS-01 → R-INS-04
         validarCursoAceptaInscripciones(curso);
         validarDuplicado(usuarioId, cursoId);
-        validarModalidades(curso, req.getModalidades());
 
-        boolean esPago = curso.getPrecioCop() != null && curso.getPrecioCop() > 0;
+        ModalidadResuelta res = resolverModalidad(curso, req);
+        boolean esPago = res.precioCompra != null && res.precioCompra.signum() > 0;
         boolean hayCupo = hayCupoDisponible(curso);
 
-        // R-INS-05: cupo lleno → EN_ESPERA, sin pago. Cuando se libere se
-        // notifica al user para que inicie el pago (si aplica).
+        // R-INS-05: cupo lleno → EN_ESPERA, sin pago.
         if (!hayCupo) {
             Matricula esperando = guardar(
-                    construirBase(usuarioId, curso, req, TipoParticipante.ASISTENTE, false)
+                    construirBase(usuarioId, curso, res, TipoParticipante.ASISTENTE, false)
                             .estado(EstadoMatricula.EN_ESPERA)
                             .posicionEspera(matriculaRepository.maxPosicionEspera(cursoId) + 1)
                             .build(),
@@ -81,20 +83,21 @@ public class MatriculaServiceImpl implements MatriculaService {
 
         // R-INS-07: curso gratis → ACTIVA directo
         if (!esPago) {
-            Matricula m = guardar(construirBase(usuarioId, curso, req, TipoParticipante.ASISTENTE, false)
+            Matricula m = guardar(construirBase(usuarioId, curso, res, TipoParticipante.ASISTENTE, false)
                     .estado(EstadoMatricula.ACTIVA).build(), "matricula gratuita activada");
             notificar(m, curso, "CURSO_INSCRIPCION_OK");
+            notificarEscarapelaSiAplica(m, curso);
             return toResponse(m);
         }
 
-        // R-INS-06: curso pago — crear o reutilizar pago
-        PagoResumen pago = resolverPago(usuarioId, curso, req);
+        // R-INS-06: curso pago — crear o reutilizar pago (monto = precio de la modalidad)
+        PagoResumen pago = resolverPago(usuarioId, curso, req, res.precioCompra);
 
         EstadoMatricula estado = pago.aprobado()
                 ? EstadoMatricula.ACTIVA
                 : EstadoMatricula.PENDIENTE_PAGO;
 
-        Matricula m = guardar(construirBase(usuarioId, curso, req, TipoParticipante.ASISTENTE, false)
+        Matricula m = guardar(construirBase(usuarioId, curso, res, TipoParticipante.ASISTENTE, false)
                 .estado(estado)
                 .pagoId(pago.pagoId())
                 .reservaExpira(estado == EstadoMatricula.PENDIENTE_PAGO
@@ -105,8 +108,58 @@ public class MatriculaServiceImpl implements MatriculaService {
         notificar(m, curso, estado == EstadoMatricula.ACTIVA
                 ? "CURSO_INSCRIPCION_OK"
                 : "CURSO_INSCRIPCION_PENDIENTE_PAGO");
+        if (estado == EstadoMatricula.ACTIVA) notificarEscarapelaSiAplica(m, curso);
         return toResponse(m);
     }
+
+    /**
+     * Resuelve la modalidad de compra, su precio y el set final de acceso
+     * (aplicando el bonus de GRABADO si convive con vivo).
+     */
+    private ModalidadResuelta resolverModalidad(Curso curso, InscribirRequest req) {
+        ModalidadTipo tmp = req.getModalidad();
+        if (tmp == null && req.getModalidades() != null && !req.getModalidades().isEmpty()) {
+            tmp = req.getModalidades().iterator().next(); // back-compat
+        }
+        if (tmp == null) {
+            throw new CursosApiException(ServerApiStatusCode.DATOS_INVALIDOS,
+                    "Debes elegir una modalidad para inscribirte");
+        }
+        final ModalidadTipo elegida = tmp;
+
+        CursoModalidad cm = curso.getModalidades().stream()
+                .filter(m -> Boolean.TRUE.equals(m.getActivo()) && m.getTipo() == elegida)
+                .findFirst()
+                .orElseThrow(() -> new CursosApiException(ServerApiStatusCode.MODALIDAD_NO_DISPONIBLE,
+                        "Modalidad " + elegida + " no está activa en el curso"));
+
+        boolean hayVivo = curso.getModalidades().stream()
+                .anyMatch(m -> Boolean.TRUE.equals(m.getActivo())
+                        && (m.getTipo() == ModalidadTipo.VIRTUAL_LIVE
+                         || m.getTipo() == ModalidadTipo.PRESENCIAL));
+
+        // No se puede comprar GRABADO si convive con vivo — se otorga como bonus
+        if (cm.getTipo() == ModalidadTipo.GRABADO && hayVivo) {
+            throw new CursosApiException(ServerApiStatusCode.MODALIDAD_NO_DISPONIBLE,
+                    "GRABADO va incluido con las modalidades en vivo, no se compra por separado");
+        }
+
+        Set<ModalidadTipo> acceso = new HashSet<>();
+        acceso.add(cm.getTipo());
+        // Bonus: si compró vivo y el curso ofrece GRABADO activo, se agrega
+        if (cm.getTipo() != ModalidadTipo.GRABADO) {
+            boolean grabadoActivo = curso.getModalidades().stream()
+                    .anyMatch(m -> Boolean.TRUE.equals(m.getActivo())
+                            && m.getTipo() == ModalidadTipo.GRABADO);
+            if (grabadoActivo) acceso.add(ModalidadTipo.GRABADO);
+        }
+        return new ModalidadResuelta(cm.getTipo(), cm.getPrecioCop(), acceso);
+    }
+
+    private record ModalidadResuelta(
+            ModalidadTipo modalidadCompra,
+            BigDecimal precioCompra,
+            Set<ModalidadTipo> modalidadesAcceso) {}
 
     /* ──────────────────────────────────────────────────────────────────
      * CORTESÍA (admin)
@@ -127,15 +180,30 @@ public class MatriculaServiceImpl implements MatriculaService {
                     "Cupo de asistentes lleno. Usa ignorarCupo=true si la cortesía no debe ocupar lugar.");
         }
 
-        InscribirRequest ir = new InscribirRequest();
-        ir.setModalidades(req.getModalidades());
+        // Cortesía no compra: se aceptan las modalidades pedidas tal cual (con
+        // bonus implícito si convive con vivo; no hay precio congelado).
+        ModalidadResuelta res = resolverCortesia(curso, req.getModalidades());
 
-        Matricula m = guardar(construirBase(req.getUsuarioId(), curso, ir, req.getTipo(), true)
+        Matricula m = guardar(construirBase(req.getUsuarioId(), curso, res, req.getTipo(), true)
                 .estado(EstadoMatricula.ACTIVA).build(),
                 "cortesia tipo=" + req.getTipo() + " por admin=" + adminUsuarioId);
 
         notificar(m, curso, "CURSO_CORTESIA");
         return toResponse(m);
+    }
+
+    private ModalidadResuelta resolverCortesia(Curso curso, Set<ModalidadTipo> pedidas) {
+        Set<ModalidadTipo> acceso = new HashSet<>(pedidas);
+        boolean pidioVivo = pedidas.contains(ModalidadTipo.VIRTUAL_LIVE)
+                         || pedidas.contains(ModalidadTipo.PRESENCIAL);
+        boolean grabadoActivo = curso.getModalidades().stream()
+                .anyMatch(m -> Boolean.TRUE.equals(m.getActivo())
+                        && m.getTipo() == ModalidadTipo.GRABADO);
+        if (pidioVivo && grabadoActivo) acceso.add(ModalidadTipo.GRABADO);
+        ModalidadTipo compra = pidioVivo
+                ? (pedidas.contains(ModalidadTipo.PRESENCIAL) ? ModalidadTipo.PRESENCIAL : ModalidadTipo.VIRTUAL_LIVE)
+                : pedidas.iterator().next();
+        return new ModalidadResuelta(compra, null, acceso);
     }
 
     /* ──────────────────────────────────────────────────────────────────
@@ -152,6 +220,7 @@ public class MatriculaServiceImpl implements MatriculaService {
             matriculaRepository.save(m);
             log.info("Matrícula {} activada por confirmación de pago", matriculaId);
             notificar(m, m.getCurso(), "CURSO_INSCRIPCION_OK");
+            notificarEscarapelaSiAplica(m, m.getCurso());
         }
         return toResponse(m);
     }
@@ -328,10 +397,11 @@ public class MatriculaServiceImpl implements MatriculaService {
     }
 
     /**
-     * Llama a dev-ms-pagos para obtener (o iniciar) el pago. Retorna su id y
-     * si está aprobado/gratis.
+     * Llama a dev-ms-pagos para obtener (o iniciar) el pago. El {@code monto}
+     * viene ya calculado del precio de la modalidad seleccionada — pagos NO
+     * debe recalcularlo del curso porque el precio se congela aquí.
      */
-    private PagoResumen resolverPago(Long usuarioId, Curso curso, InscribirRequest req) {
+    private PagoResumen resolverPago(Long usuarioId, Curso curso, InscribirRequest req, BigDecimal monto) {
         try {
             Map<String, Object> data;
             if (req.getPagoId() != null) {
@@ -345,7 +415,7 @@ public class MatriculaServiceImpl implements MatriculaService {
 
             Map<String, Object> body = new java.util.HashMap<>();
             body.put("cursoId", curso.getId());
-            body.put("montoCurso", curso.getPrecioCop());
+            body.put("montoCurso", monto == null ? 0 : monto.intValue());
             if (req.getCuponCodigo() != null && !req.getCuponCodigo().isBlank()) {
                 body.put("cuponCodigo", req.getCuponCodigo());
             }
@@ -401,6 +471,7 @@ public class MatriculaServiceImpl implements MatriculaService {
         } else {
             siguiente.setEstado(EstadoMatricula.ACTIVA);
             notificar(siguiente, curso, "CURSO_INSCRIPCION_OK");
+            notificarEscarapelaSiAplica(siguiente, curso);
         }
         siguiente.setPosicionEspera(null);
         matriculaRepository.save(siguiente);
@@ -409,15 +480,29 @@ public class MatriculaServiceImpl implements MatriculaService {
     }
 
     private Matricula.MatriculaBuilder construirBase(Long usuarioId, Curso curso,
-                                                      InscribirRequest req,
+                                                      ModalidadResuelta res,
                                                       TipoParticipante tipo,
                                                       boolean cortesia) {
-        return Matricula.builder()
+        Matricula.MatriculaBuilder b = Matricula.builder()
                 .usuarioId(usuarioId)
                 .curso(curso)
                 .tipo(tipo)
                 .cortesia(cortesia)
-                .modalidades(new HashSet<>(req.getModalidades()));
+                .modalidades(new HashSet<>(res.modalidadesAcceso()))
+                .precioCopPagado(cortesia ? null : res.precioCompra());
+
+        // Token de escarapela — solo si la matrícula incluye PRESENCIAL en el
+        // acceso resuelto. La URL pública se serviría en /escarapela/{token}
+        // aunque el curso no tenga plantilla configurada; el render devolverá
+        // un lienzo mínimo en ese caso.
+        if (res.modalidadesAcceso().contains(ModalidadTipo.PRESENCIAL)) {
+            b.escarapelaToken(generarEscarapelaToken());
+        }
+        return b;
+    }
+
+    private static String generarEscarapelaToken() {
+        return java.util.UUID.randomUUID().toString().replace("-", "");
     }
 
     private Matricula guardar(Matricula m, String mensajeLog) {
@@ -426,14 +511,64 @@ public class MatriculaServiceImpl implements MatriculaService {
         return saved;
     }
 
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrlBase;
+
+    /**
+     * Envía el email ESCARAPELA_LISTA cuando la matrícula acaba de quedar
+     * ACTIVA y tiene token generado (matrícula PRESENCIAL). Silencioso si no
+     * aplica o si sendmail falla — no bloquea el flujo.
+     */
+    private void notificarEscarapelaSiAplica(Matricula m, Curso curso) {
+        if (m.getEscarapelaToken() == null || m.getEscarapelaToken().isBlank()) return;
+        if (m.getEstado() != EstadoMatricula.ACTIVA) return;
+        try {
+            UsuarioDestinatario dest = resolverDestinatario(m.getUsuarioId());
+            if (dest.correo == null || dest.correo.isBlank()) return;
+
+            String sede = curso.getModalidades().stream()
+                    .filter(cm -> Boolean.TRUE.equals(cm.getActivo())
+                            && cm.getTipo() == ModalidadTipo.PRESENCIAL)
+                    .map(CursoModalidad::getSede)
+                    .filter(s -> s != null && !s.isBlank())
+                    .findFirst().orElse("");
+            String urlEscarapela = frontendUrlBase.replaceAll("/+$", "")
+                    + "/escarapela/" + m.getEscarapelaToken();
+
+            sendmail.enviarEmail(Map.of(
+                    "nombreTemplate", "ESCARAPELA_LISTA",
+                    "destinatario", Map.of(
+                            "correo", dest.correo,
+                            "nombre", dest.nombre == null ? "" : dest.nombre),
+                    "variables", Map.of(
+                            "nombreDestinatario", dest.nombre == null ? "" : dest.nombre,
+                            "nombreCurso", curso.getNombre(),
+                            "sede", sede,
+                            "fechaInicio", curso.getFechaInicio() == null
+                                    ? "" : curso.getFechaInicio().toString(),
+                            "urlEscarapela", urlEscarapela)
+            ));
+        } catch (Exception ex) {
+            log.warn("No se pudo enviar ESCARAPELA_LISTA para matrícula {}: {}",
+                    m.getId(), ex.getMessage());
+        }
+    }
+
     private void notificar(Matricula m, Curso curso, String template) {
         try {
+            UsuarioDestinatario dest = resolverDestinatario(m.getUsuarioId());
+            if (dest.correo == null || dest.correo.isBlank()) {
+                log.warn("No se pudo notificar matrícula {} — usuario {} sin email",
+                        m.getId(), m.getUsuarioId());
+                return;
+            }
             sendmail.enviarEmail(Map.of(
                     "nombreTemplate", template,
                     "destinatario", Map.of(
-                            "correo", "usuario-" + m.getUsuarioId() + "@eduessence.local",
-                            "nombre", "Usuario"),
+                            "correo", dest.correo,
+                            "nombre", dest.nombre == null ? "" : dest.nombre),
                     "variables", Map.of(
+                            "nombreDestinatario", dest.nombre == null ? "" : dest.nombre,
                             "nombreCurso", curso.getNombre(),
                             "matriculaId", m.getId(),
                             "estado", m.getEstado().name(),
@@ -444,6 +579,33 @@ public class MatriculaServiceImpl implements MatriculaService {
             log.warn("No se pudo notificar matrícula {} con template {}: {}",
                     m.getId(), template, ex.getMessage());
         }
+    }
+
+    /** DTO interno con los datos mínimos del destinatario. */
+    private record UsuarioDestinatario(String correo, String nombre) {}
+
+    /**
+     * Resuelve el email + nombre real del usuario vía Feign a authenticate.
+     * Si el lookup falla, devuelve datos vacíos y se omite el envío.
+     */
+    @SuppressWarnings("unchecked")
+    private UsuarioDestinatario resolverDestinatario(Long usuarioId) {
+        try {
+            Map<String, Object> resp = authClient.lookup(List.of(usuarioId));
+            Object dataObj = resp == null ? null : resp.get("response");
+            if (dataObj instanceof List<?> list && !list.isEmpty()
+                    && list.get(0) instanceof Map<?, ?> u) {
+                Map<String, Object> mu = (Map<String, Object>) u;
+                String email = mu.get("email") == null ? null : mu.get("email").toString();
+                String nombres = mu.get("nombres") == null ? "" : mu.get("nombres").toString();
+                String apellidos = mu.get("apellidos") == null ? "" : mu.get("apellidos").toString();
+                String nombreCompleto = (nombres + " " + apellidos).trim();
+                return new UsuarioDestinatario(email, nombreCompleto.isEmpty() ? nombres : nombreCompleto);
+            }
+        } catch (Exception ex) {
+            log.warn("No se pudo hacer lookup del usuario {}: {}", usuarioId, ex.getMessage());
+        }
+        return new UsuarioDestinatario(null, null);
     }
 
     private MatriculaResponse toResponse(Matricula m) {
@@ -457,6 +619,8 @@ public class MatriculaServiceImpl implements MatriculaService {
                 .posicionEspera(m.getPosicionEspera())
                 .reservaExpira(m.getReservaExpira())
                 .pagoId(m.getPagoId())
+                .precioCopPagado(m.getPrecioCopPagado())
+                .escarapelaToken(m.getEscarapelaToken())
                 .cortesia(m.getCortesia())
                 .modalidades(m.getModalidades())
                 .progresoPct(m.getProgresoPct())

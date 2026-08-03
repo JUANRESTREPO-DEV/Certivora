@@ -9,6 +9,7 @@ import com.eduessence.cursos.model.dto.response.MatriculaResponse;
 import com.eduessence.cursos.model.entity.AsistenciaVirtual;
 import com.eduessence.cursos.model.entity.SesionVirtual;
 import com.eduessence.cursos.repository.AsistenciaVirtualRepository;
+import com.eduessence.cursos.repository.CursoRepository;
 import com.eduessence.cursos.repository.MatriculaRepository;
 import com.eduessence.cursos.repository.SesionVirtualRepository;
 import com.eduessence.cursos.service.AprobacionService;
@@ -36,6 +37,7 @@ public class InternalController {
     private final AsistenciaVirtualRepository asistenciaRepository;
     private final SesionVirtualRepository sesionVirtualRepository;
     private final MatriculaRepository matriculaRepository;
+    private final CursoRepository cursoRepository;
 
     @PostMapping("/matriculas/{id}/activar")
     public ResponseEntity<GeneralResponseDTO<MatriculaResponse>> activar(@PathVariable Long id) {
@@ -61,9 +63,34 @@ public class InternalController {
         return ResponseEntity.ok(ok(matriculaService.obtener(id), "OK"));
     }
 
+    /**
+     * Datos básicos de un curso para uso interno (ej. notificaciones desde
+     * pagos/certificados). Solo devuelve id + nombre + slug — no exposición
+     * completa del curso.
+     */
+    @GetMapping("/cursos/{id}/basico")
+    public ResponseEntity<GeneralResponseDTO<java.util.Map<String, Object>>> cursoBasico(@PathVariable Long id) {
+        return cursoRepository.findById(id)
+                .map(c -> ResponseEntity.ok(ok(
+                        java.util.Map.<String, Object>of(
+                                "id", c.getId(),
+                                "nombre", c.getNombre() == null ? "" : c.getNombre(),
+                                "slug", c.getSlug() == null ? "" : c.getSlug()
+                        ),
+                        "OK")))
+                .orElseThrow(() -> new CursosApiException(ServerApiStatusCode.CURSO_NO_ENCONTRADO));
+    }
+
     @GetMapping("/matriculas/{id}/evaluar")
     public ResponseEntity<GeneralResponseDTO<AprobacionResultDTO>> evaluar(@PathVariable Long id) {
         return ResponseEntity.ok(ok(aprobacionService.evaluar(id), "OK"));
+    }
+
+    /** Todas las matrículas de un usuario — usado por el panel /app/usuarios. */
+    @GetMapping("/usuarios/{usuarioId}/matriculas")
+    public ResponseEntity<GeneralResponseDTO<java.util.List<MatriculaResponse>>> matriculasPorUsuario(
+            @PathVariable Long usuarioId) {
+        return ResponseEntity.ok(ok(matriculaService.misMatriculas(usuarioId), "OK"));
     }
 
     @PostMapping("/asistencia-virtual/heartbeat")

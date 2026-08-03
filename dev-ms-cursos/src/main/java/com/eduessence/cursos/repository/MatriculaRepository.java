@@ -95,4 +95,7 @@ public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
     List<Matricula> findReservasVencidas(@Param("ahora") LocalDateTime ahora);
 
     Optional<Matricula> findByPagoId(Long pagoId);
+
+    /** Lookup por token público de escarapela (endpoint /public/escarapela). */
+    Optional<Matricula> findByEscarapelaToken(String token);
 }

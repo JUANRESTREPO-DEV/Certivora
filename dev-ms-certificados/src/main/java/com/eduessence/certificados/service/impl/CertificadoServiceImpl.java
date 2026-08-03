@@ -2,6 +2,7 @@ package com.eduessence.certificados.service.impl;
 
 import com.eduessence.certificados.exception.CertificadosApiException;
 import com.eduessence.certificados.exception.ServerApiStatusCode;
+import com.eduessence.certificados.feign.AuthenticateServiceClient;
 import com.eduessence.certificados.feign.SendmailServiceClient;
 import com.eduessence.certificados.model.dto.request.EmitirRequest;
 import com.eduessence.certificados.model.dto.response.CertificadoResponse;
@@ -50,6 +51,7 @@ public class CertificadoServiceImpl implements CertificadoService {
     private final S3StorageService s3;
     private final CodigoGenerador codigoGenerador;
     private final SendmailServiceClient sendmail;
+    private final AuthenticateServiceClient authClient;
 
     @Value("${eduessence.certificados.url-verificacion-base}")
     private String urlVerificacionBase;
@@ -130,18 +132,25 @@ public class CertificadoServiceImpl implements CertificadoService {
         // Notificación por email
         try {
             String urlPdfPublica = s3.urlPreFirmada(key, URL_TTL_SEGUNDOS);
-            sendmail.enviarEmail(Map.of(
-                    "nombreTemplate", "CERTIFICADO_EMITIDO",
-                    "destinatario", Map.of(
-                            "correo", "usuario-" + req.getUsuarioId() + "@eduessence.local",
-                            "nombre", req.getNombreCompleto()),
-                    "variables", Map.of(
-                            "nombreCurso", req.getNombreCurso(),
-                            "codigoCertificado", codigo,
-                            "urlVerificacion", urlVerificacion,
-                            "urlPdf", urlPdfPublica
-                    )
-            ));
+            String emailReal = resolverEmailReal(req.getUsuarioId());
+            if (emailReal != null && !emailReal.isBlank()) {
+                sendmail.enviarEmail(Map.of(
+                        "nombreTemplate", "CERTIFICADO_EMITIDO",
+                        "destinatario", Map.of(
+                                "correo", emailReal,
+                                "nombre", req.getNombreCompleto() == null ? "" : req.getNombreCompleto()),
+                        "variables", Map.of(
+                                "nombreDestinatario", req.getNombreCompleto() == null ? "" : req.getNombreCompleto(),
+                                "nombreCurso", req.getNombreCurso(),
+                                "codigoCertificado", codigo,
+                                "urlVerificacion", urlVerificacion,
+                                "urlPdf", urlPdfPublica
+                        )
+                ));
+            } else {
+                log.warn("No se envió email de certificado {} — usuario {} sin email",
+                        codigo, req.getUsuarioId());
+            }
         } catch (Exception ex) {
             log.warn("No se pudo notificar emisión {}: {}", codigo, ex.getMessage());
         }
@@ -260,5 +269,25 @@ public class CertificadoServiceImpl implements CertificadoService {
                 .urlPdf(c.getUrlPdf()).qrUrl(c.getQrUrl())
                 .fechaEmision(c.getFechaEmision())
                 .build();
+    }
+
+    /**
+     * Resuelve el email real del usuario vía Feign a authenticate.
+     * Si el lookup falla, devuelve null y el llamador debe omitir el envío.
+     */
+    @SuppressWarnings("unchecked")
+    private String resolverEmailReal(Long usuarioId) {
+        try {
+            Map<String, Object> resp = authClient.lookup(List.of(usuarioId));
+            Object dataObj = resp == null ? null : resp.get("response");
+            if (dataObj instanceof List<?> list && !list.isEmpty()
+                    && list.get(0) instanceof Map<?, ?> u) {
+                Map<String, Object> mu = (Map<String, Object>) u;
+                return mu.get("email") == null ? null : mu.get("email").toString();
+            }
+        } catch (Exception ex) {
+            log.warn("Lookup del usuario {} falló: {}", usuarioId, ex.getMessage());
+        }
+        return null;
     }
 }

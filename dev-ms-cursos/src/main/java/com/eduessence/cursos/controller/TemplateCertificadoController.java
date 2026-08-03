@@ -71,4 +71,32 @@ public class TemplateCertificadoController {
         return ResponseEntity.status(201).body(GeneralResponseDTO.<Map<String, Object>>builder()
                 .statusCode(201).serviceName(SERVICE).message("Plantilla clonada").response(data).build());
     }
+
+    @GetMapping("/{id}")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<GeneralResponseDTO<Map<String, Object>>> obtener(@PathVariable Long id) {
+        Map<String, Object> raw = client.obtenerTemplate(id);
+        Object resp = raw == null ? null : raw.get("response");
+        Map<String, Object> data = (resp instanceof Map<?, ?> m) ? (Map<String, Object>) m : Map.of();
+        return ResponseEntity.ok(GeneralResponseDTO.<Map<String, Object>>builder()
+                .statusCode(200).serviceName(SERVICE).message("OK").response(data).build());
+    }
+
+    @PutMapping("/{id}")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<GeneralResponseDTO<Map<String, Object>>> actualizar(
+            @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Map<String, Object> raw = client.actualizarTemplate(id, body);
+        Object resp = raw == null ? null : raw.get("response");
+        Map<String, Object> data = (resp instanceof Map<?, ?> m) ? (Map<String, Object>) m : Map.of();
+        return ResponseEntity.ok(GeneralResponseDTO.<Map<String, Object>>builder()
+                .statusCode(200).serviceName(SERVICE).message("Plantilla actualizada").response(data).build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<GeneralResponseDTO<Void>> borrar(@PathVariable Long id) {
+        client.borrarTemplate(id);
+        return ResponseEntity.ok(GeneralResponseDTO.<Void>builder()
+                .statusCode(200).serviceName(SERVICE).message("Plantilla desactivada").response(null).build());
+    }
 }

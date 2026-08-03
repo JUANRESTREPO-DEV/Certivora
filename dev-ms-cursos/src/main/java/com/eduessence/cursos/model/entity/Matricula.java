@@ -54,6 +54,22 @@ public class Matricula {
     @Column(name = "pago_id")
     private Long pagoId;
 
+    /**
+     * Precio COP congelado al inscribirse. Sobrevive a cambios posteriores
+     * del precio del curso. {@code null} si es cortesía o gratis.
+     */
+    @Column(name = "precio_cop_pagado", precision = 12, scale = 0)
+    private BigDecimal precioCopPagado;
+
+    /**
+     * Token único para la escarapela pública del asistente. Se genera al
+     * inscribirse en un curso que ofrece PRESENCIAL, se comparte por URL en
+     * {@code /public/escarapela/{token}}. {@code null} para matrículas que
+     * no son PRESENCIAL o cursos sin plantilla de escarapela.
+     */
+    @Column(name = "escarapela_token", length = 64, unique = true)
+    private String escarapelaToken;
+
     /** Hasta cuándo se mantiene el cupo reservado mientras se confirma el pago. */
     @Column(name = "reserva_expira")
     private LocalDateTime reservaExpira;

@@ -1,6 +1,7 @@
 package com.eduessence.cursos.model.dto.request;
 
-import com.eduessence.cursos.model.enums.ModalidadTipo;
+import com.eduessence.cursos.model.dto.ModalidadCursoDTO;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -42,9 +43,6 @@ public class CrearCursoRequest {
     private LocalDateTime fechaLimiteInscripcion;
     private Integer cupoMaximo;
 
-    @PositiveOrZero
-    private Integer precioCop;
-
     @Positive
     private Integer intensidadHoras;
 
@@ -55,6 +53,12 @@ public class CrearCursoRequest {
     @NotEmpty(message = "Debes seleccionar al menos un instructor")
     private List<Long> instructorUsuarioIds;
 
-    @NotEmpty
-    private List<ModalidadTipo> modalidades;
+    /**
+     * Modalidades ofrecidas con su precio individual. Debe tener al menos 1.
+     * Las reglas de precio están en {@link ModalidadCursoDTO} y se validan
+     * en el servicio (GRABADO como bonus si convive con vivo).
+     */
+    @NotEmpty(message = "Debes ofrecer al menos una modalidad")
+    @Valid
+    private List<ModalidadCursoDTO> modalidades;
 }

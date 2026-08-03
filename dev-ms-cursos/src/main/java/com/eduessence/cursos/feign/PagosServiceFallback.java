@@ -20,4 +20,10 @@ public class PagosServiceFallback implements PagosServiceClient {
         log.warn("[Fallback] pagos-service no disponible (iniciarPago body={})", body);
         return Map.of("error", "PAGOS_NO_DISPONIBLE");
     }
+
+    @Override
+    public Map<String, Object> ingresosPorCurso() {
+        log.warn("[Fallback] pagos-service no disponible (ingresosPorCurso)");
+        return Map.of("response", Map.of());
+    }
 }
